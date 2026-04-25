@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.dextilt/shared/protocol_schema.json",
+  "title": "DexTilt v1 Protocol Schemas",
+  "defs": {
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "device_id", "receiver_id", "command_id", "gesture_id", "timestamp_ms", "nonce", "confidence", "signature"],
+      "properties": {
+        "protocol": { "const": "dextilt.v1" },
+        "device_id": { "type": "string", "minLength": 8, "maxLength": 128 },
+        "receiver_id": { "type": "string", "minLength": 8, "maxLength": 128 },
+        "command_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "gesture_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "timestamp_ms": { "type": "integer" },
+        "nonce": { "type": "string", "minLength": 8, "maxLength": 128 },
+        "confidence": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "signature": { "type": "string", "minLength": 16, "maxLength": 256 }
+      }
+    },
+    "pairing_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "host", "port", "receiver_id", "pairing_token", "expires_at_ms"],
+      "properties": {
+        "protocol": { "const": "dextilt.pairing.v1" },
+        "host": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "receiver_id": { "type": "string" },
+        "pairing_token": { "type": "string" },
+        "expires_at_ms": { "type": "integer" }
+      }
+    },
+    "gesture_template": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schema_version", "gesture_id", "name", "created_at", "sample_rate_hz", "duration_ms", "start_posture", "sensor_sources", "features", "tolerance"],
+      "properties": {
+        "schema_version": { "const": "dextilt.gesture.v1" },
+        "gesture_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "name": { "type": "string" },
+        "created_at": { "type": "string" },
+        "sample_rate_hz": { "type": "integer" },
+        "duration_ms": { "type": "integer" },
+        "start_posture": { "const": "face_down" },
+        "sensor_sources": { "type": "array", "items": { "type": "string" } },
+        "features": { "type": "object" },
+        "tolerance": { "enum": ["strict", "normal", "relaxed"] }
+      }
+    }
+  }
+}

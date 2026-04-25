@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- v1 uses user-controlled local HTTP plus DexTilt HMAC. Do not expose the receiver to public networks. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

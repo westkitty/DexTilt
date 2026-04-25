@@ -1,0 +1,38 @@
+# DexTilt local/runtime files
+.DS_Store
+*.log
+*.tmp
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+
+# Mac receiver local config/state; never commit secrets
+mac_receiver/config.json
+mac_receiver/state.json
+mac_receiver/logs/
+.dextilt/
+
+# Android/Gradle generated output
+android_app/.gradle/
+android_app/build/
+android_app/app/build/
+android_app/local.properties
+android_app/**/generated/
+android_app/captures/
+*.apk
+!release/DexTilt-debug.apk
+
+# IDE/editor
+.idea/
+.vscode/
+*.iml
+
+# Diagnostics that may contain local machine details
+debug_bundle/
+*debug*.zip

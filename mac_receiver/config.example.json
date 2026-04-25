@@ -1,0 +1,41 @@
+{
+  "display_name": "DexTilt Mac Receiver",
+  "host": "0.0.0.0",
+  "port": 47391,
+  "advertised_host": null,
+  "dashboard_local_url": "http://127.0.0.1:47391/status",
+  "pairing_token_ttl_seconds": 300,
+  "timestamp_window_seconds": 60,
+  "command_cooldown_seconds": 2.0,
+  "rate_limit_per_minute": 30,
+  "max_payload_bytes": 32768,
+  "dry_run_actions": false,
+  "log_path": "~/.dextilt/logs/dextilt_receiver.log",
+  "state_path": "~/.dextilt/state.json",
+  "commands": {
+    "open_gpt_default_browser": {
+      "type": "open_url",
+      "url": "https://chatgpt.com/",
+      "success_title": "DexTilt",
+      "success_message": "Open GPT triggered"
+    },
+    "notify_test": {
+      "type": "notification",
+      "title": "DexTilt",
+      "message": "Test command received"
+    },
+    "open_test_url": {
+      "type": "open_url",
+      "url": "https://example.com/",
+      "success_title": "DexTilt",
+      "success_message": "Test URL triggered"
+    },
+    "open_gpt_brave": {
+      "type": "open_url",
+      "url": "https://chatgpt.com/",
+      "browser_app": "Brave Browser",
+      "success_title": "DexTilt",
+      "success_message": "Open GPT in Brave triggered"
+    }
+  }
+}
