@@ -4,8 +4,8 @@ import kotlin.math.abs
 import kotlin.math.max
 
 class GestureMatcher(
-    private val highThreshold: Int = 85,
-    private val mediumThreshold: Int = 60
+    private val highThreshold: Int = 70,
+    private val mediumThreshold: Int = 55
 ) {
     fun match(template: GestureTemplate, samples: List<SensorSample>, faceDownStable: Boolean): GestureMatch {
         if (!faceDownStable || template.startPosture != "face_down") {

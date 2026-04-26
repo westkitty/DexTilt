@@ -25,5 +25,13 @@ data class DexTiltUiState(
     val manualHost: String = "",
     val manualPort: String = "47391",
     val manualToken: String = "",
-    val manualReceiverId: String = ""
+    val manualReceiverId: String = "",
+    val roll: Float = 0f,
+    val pitch: Float = 0f,
+    val yaw: Float = 0f,
+    val qw: Float = 1f,
+    val qx: Float = 0f,
+    val qy: Float = 0f,
+    val qz: Float = 0f,
+    val liveSyncActive: Boolean = false
 )

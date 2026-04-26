@@ -21,11 +21,11 @@ class GestureTemplateStore(context: Context) {
     }
 
     fun buildTemplate(name: String, samples: List<SensorSample>, sensorSources: List<String>, tolerance: String): GestureTemplate {
-        val id = "primary_open_gpt"
+        val id = "primary_dexdictate_toggle"
         val durationMs = if (samples.size >= 2) (samples.last().timestampNs - samples.first().timestampNs) / 1_000_000L else 0L
         return GestureTemplate(
             gestureId = id,
-            name = name.ifBlank { "Open GPT Gesture" },
+            name = name.ifBlank { "DexDictate Toggle Gesture" },
             createdAt = Instant.now().toString(),
             sampleRateHz = 50,
             durationMs = durationMs,

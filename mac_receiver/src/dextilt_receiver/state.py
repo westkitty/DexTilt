@@ -20,6 +20,7 @@ class StateStore:
         self.lock = threading.RLock()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.data = self._load_or_create()
+        self._live_phone_state: dict | None = None
 
     def _load_or_create(self) -> dict[str, Any]:
         if self.path.exists():
@@ -40,6 +41,7 @@ class StateStore:
         data.setdefault("last_command", None)
         data.setdefault("last_error", None)
         data.setdefault("last_calibration", None)
+        data.setdefault("last_gesture_preview", None)
         data.setdefault("created_at_ms", now_ms())
         if changed or not self.path.exists():
             self._save_unlocked(data)
@@ -126,6 +128,23 @@ class StateStore:
         with self.lock:
             self.data["last_calibration"] = update
             self._save_unlocked()
+
+    def set_last_phone_state(self, state: dict) -> None:
+        with self.lock:
+            self._live_phone_state = state
+
+    def get_last_phone_state(self) -> dict | None:
+        with self.lock:
+            return self._live_phone_state
+
+    def set_last_gesture_preview(self, preview: dict) -> None:
+        with self.lock:
+            self.data["last_gesture_preview"] = preview
+            self._save_unlocked()
+
+    def get_last_gesture_preview(self) -> dict | None:
+        with self.lock:
+            return self.data.get("last_gesture_preview")
 
     def status_snapshot(self, port: int = DEFAULT_PORT) -> dict[str, Any]:
         paired = self.data.get("paired_devices", {})

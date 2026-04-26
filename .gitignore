@@ -36,3 +36,4 @@ android_app/captures/
 # Diagnostics that may contain local machine details
 debug_bundle/
 *debug*.zip
+*.bak

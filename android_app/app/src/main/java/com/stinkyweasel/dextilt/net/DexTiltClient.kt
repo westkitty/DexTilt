@@ -5,11 +5,13 @@ import com.stinkyweasel.dextilt.model.CommandResult
 import com.stinkyweasel.dextilt.model.PairResponse
 import com.stinkyweasel.dextilt.model.PairingPayload
 import com.stinkyweasel.dextilt.model.PairingState
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.security.SecureRandom
 import java.util.Base64
 
@@ -49,6 +51,108 @@ class DexTiltClient(private val timeoutMs: Int = 3000) {
         val signed = unsigned.copy(signature = DexTiltSigner.sign(unsigned, sharedSecret))
         val response = request("POST", "${pairing.baseUrl()}/command", ProtocolJson.commandJson(signed).toString())
         return ProtocolJson.commandResult(response.body, response.code)
+    }
+
+
+    fun sendEvent(pairing: PairingState, sharedSecret: String, eventId: String, detail: String): CommandResult {
+        val unsigned = CommandMessage(
+            deviceId = pairing.deviceId,
+            receiverId = pairing.receiverId,
+            commandId = "phone_event",
+            gestureId = eventId.take(80),
+            timestampMs = System.currentTimeMillis(),
+            nonce = nonce(),
+            confidence = 100
+        )
+        val signed = unsigned.copy(signature = DexTiltSigner.sign(unsigned, sharedSecret))
+        val body = ProtocolJson.commandJson(signed)
+            .put("event_id", eventId.take(80))
+            .put("detail", detail.take(500))
+        val response = request("POST", "${pairing.baseUrl()}/event", body.toString())
+        return ProtocolJson.commandResult(response.body, response.code)
+    }
+
+    fun pollPhoneControl(pairing: PairingState): PhoneControlAction? {
+        val encodedDeviceId = URLEncoder.encode(pairing.deviceId, "UTF-8")
+        val response = request("GET", "${pairing.baseUrl()}/phone-control/poll?device_id=$encodedDeviceId")
+        if (response.code !in 200..299) return null
+        val obj = JSONObject(response.body)
+        val control = obj.optJSONObject("control") ?: return null
+        val action = control.optString("action").takeIf { it.isNotBlank() } ?: return null
+        return PhoneControlAction(
+            action = action,
+            createdAtMs = control.optLong("created_at_ms", 0L),
+            id = control.optString("id", "")
+        )
+    }
+
+    fun sendLivePhoneState(
+        pairing: PairingState,
+        sharedSecret: String,
+        sensorData: Map<String, Any>
+    ): CommandResult {
+        return try {
+            val unsigned = CommandMessage(
+                deviceId = pairing.deviceId,
+                receiverId = pairing.receiverId,
+                commandId = "live_phone_state",
+                gestureId = "live",
+                timestampMs = System.currentTimeMillis(),
+                nonce = nonce(),
+                confidence = 100
+            )
+            val signed = unsigned.copy(signature = DexTiltSigner.sign(unsigned, sharedSecret))
+            val body = ProtocolJson.commandJson(signed)
+            sensorData.forEach { (k, v) -> body.put(k, v) }
+            val response = request("POST", "${pairing.baseUrl()}/phone-state", body.toString())
+            ProtocolJson.commandResult(response.body, response.code)
+        } catch (e: Exception) {
+            CommandResult(ok = false, accepted = false, userMessage = e.message ?: "Send failed")
+        }
+    }
+
+    fun sendGesturePreview(
+        pairing: PairingState,
+        sharedSecret: String,
+        previewData: Map<String, Any>
+    ): CommandResult {
+        return try {
+            val gestureId = (previewData["gesture_id"] as? String ?: "unknown").take(64)
+            val unsigned = CommandMessage(
+                deviceId = pairing.deviceId,
+                receiverId = pairing.receiverId,
+                commandId = "gesture_preview",
+                gestureId = gestureId,
+                timestampMs = System.currentTimeMillis(),
+                nonce = nonce(),
+                confidence = 100
+            )
+            val signed = unsigned.copy(signature = DexTiltSigner.sign(unsigned, sharedSecret))
+            val body = ProtocolJson.commandJson(signed)
+            previewData.forEach { (k, v) ->
+                when (v) {
+                    is List<*> -> {
+                        val arr = JSONArray()
+                        v.forEach { item ->
+                            when (item) {
+                                is Map<*, *> -> {
+                                    val obj = JSONObject()
+                                    item.forEach { (mk, mv) -> obj.put(mk.toString(), mv) }
+                                    arr.put(obj)
+                                }
+                                else -> arr.put(item)
+                            }
+                        }
+                        body.put(k, arr)
+                    }
+                    else -> body.put(k, v)
+                }
+            }
+            val response = request("POST", "${pairing.baseUrl()}/gesture-preview", body.toString())
+            ProtocolJson.commandResult(response.body, response.code)
+        } catch (e: Exception) {
+            CommandResult(ok = false, accepted = false, userMessage = e.message ?: "Send failed")
+        }
     }
 
     fun sendCalibration(pairing: PairingState, sharedSecret: String, stepId: String, stepLabel: String, status: String, detail: String): CommandResult {
@@ -93,6 +197,12 @@ class DexTiltClient(private val timeoutMs: Int = 3000) {
         SecureRandom().nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
+
+    data class PhoneControlAction(
+        val action: String,
+        val createdAtMs: Long,
+        val id: String
+    )
 
     private data class HttpResponse(val code: Int, val body: String)
 }

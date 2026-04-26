@@ -17,8 +17,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.draw.alpha
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -45,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import com.stinkyweasel.dextilt.model.DexTiltUiState
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -120,6 +128,19 @@ fun StatusCard(vm: DexTiltViewModel) {
         Text("Last result: ${ui.lastResult}", color = Color(0xFFD7E3FF))
         ui.lastError?.let { Text("Error: $it", color = Color(0xFFFF6B6B)) }
         ui.lastConfidence?.let { Text("Confidence: $it", color = Color(0xFF8EE99A), fontFamily = FontFamily.Monospace) }
+        if (ui.liveSyncActive) {
+            val inf = rememberInfiniteTransition(label = "livesync")
+            val liveAlpha by inf.animateFloat(
+                initialValue = 1f, targetValue = 0.3f,
+                animationSpec = infiniteRepeatable(tween(800), RepeatMode.Reverse),
+                label = "livesync_alpha"
+            )
+            Row(Modifier.padding(top = 4.dp).alpha(liveAlpha), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(8.dp).height(8.dp).background(Color(0xFF00E5FF), CircleShape))
+                Spacer(Modifier.width(4.dp))
+                Text("Live to Mac", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF00E5FF))
+            }
+        }
     }
 }
 
@@ -146,7 +167,15 @@ fun HomeScreen(vm: DexTiltViewModel) {
             Button(onClick = { vm.sendManual("notify_test") }) { Text("Test Mac notification") }
         }
         Spacer(Modifier.height(8.dp))
-        Button(onClick = { vm.sendManual("open_gpt_default_browser") }, modifier = Modifier.fillMaxWidth()) { Text("Open ChatGPT") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { vm.sendManual("dex_dictate_toggle_listen") }) { Text("DexDictate Toggle") }
+            Button(onClick = { vm.sendManual("press_enter") }) { Text("Enter") }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { vm.sendManual("open_chatgpt_app") }) { Text("ChatGPT App") }
+            Button(onClick = { vm.sendManual("open_dextilt_dashboard") }) { Text("Dashboard") }
+        }
     }
 }
 
@@ -221,6 +250,7 @@ fun TrainingScreen(vm: DexTiltViewModel) {
             }
         }
     }
+    OrientationCard(ui)
     LiveSensorCard(vm)
 }
 
@@ -251,6 +281,7 @@ fun DebugScreen(vm: DexTiltViewModel) {
         }
     }
     LiveSensorCard(vm)
+    OrientationCard(ui)
     DexCard(title = "Local logs") {
         ui.logs.take(30).forEach { Text(it, color = Color(0xFFCBD5E1), fontFamily = FontFamily.Monospace, fontSize = 12.sp) }
     }
@@ -258,6 +289,41 @@ fun DebugScreen(vm: DexTiltViewModel) {
         Text("This deletes local pairing and gesture templates on the phone only. Reset the Mac receiver separately if needed.", color = Color(0xFFFFD166))
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = { vm.resetPairing() }) { Text("Reset Android pairing and gestures") }
+    }
+}
+
+@Composable
+fun OrientationCard(uiState: DexTiltUiState) {
+    val fdColor = if (uiState.faceDownStable) Color(0xFF00E676) else Color(0xFFFF9100)
+    DexCard(title = "Orientation") {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.width(8.dp).height(8.dp).background(fdColor, CircleShape))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                if (uiState.faceDownStable) "Face-down stable" else "Not face-down",
+                fontSize = 12.sp, color = fdColor, fontFamily = FontFamily.Monospace
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        listOf(
+            "Roll" to "%.1f°".format(Math.toDegrees(uiState.roll.toDouble())),
+            "Pitch" to "%.1f°".format(Math.toDegrees(uiState.pitch.toDouble())),
+            "Yaw" to "%.1f°".format(Math.toDegrees(uiState.yaw.toDouble()))
+        ).forEach { (label, value) ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(label, fontSize = 11.sp, fontFamily = FontFamily.Monospace,
+                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Text(value, fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF00E5FF))
+            }
+        }
+        if (uiState.qw != 1f || uiState.qx != 0f || uiState.qy != 0f || uiState.qz != 0f) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Q: %.3f %.3f %.3f %.3f".format(uiState.qw, uiState.qx, uiState.qy, uiState.qz),
+                fontSize = 10.sp, fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+        }
     }
 }
 
