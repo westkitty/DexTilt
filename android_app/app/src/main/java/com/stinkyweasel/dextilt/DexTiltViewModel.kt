@@ -9,6 +9,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.stinkyweasel.dextilt.gesture.FaceDownDetector
 import com.stinkyweasel.dextilt.gesture.GestureMatcher
+import com.stinkyweasel.dextilt.gesture.GestureCaptureDecision
+import com.stinkyweasel.dextilt.gesture.GestureCapturePolicy
 import com.stinkyweasel.dextilt.gesture.GestureTemplate
 import com.stinkyweasel.dextilt.gesture.GestureTemplateStore
 import com.stinkyweasel.dextilt.gesture.SensorSample
@@ -380,31 +382,69 @@ class DexTiltViewModel(application: Application) : AndroidViewModel(application)
 
         armedSamples.add(sample)
         val durationMs = gestureDurationMs(armedSamples)
-
-        if (stable && durationMs >= minGestureDurationMs) {
+        val stableEndHeldMs = if (stable && durationMs >= minGestureDurationMs) {
             val since = armedStableEndSinceNs ?: sample.timestampNs.also { armedStableEndSinceNs = it }
-            val heldMs = (sample.timestampNs - since) / 1_000_000L
-            if (heldMs >= stableEndHoldMs) {
-                notifyMac("gesture_captured", "Gesture captured. Matching now.")
-                finishArmedGesture()
-                return
-            }
+            (sample.timestampNs - since) / 1_000_000L
         } else {
             armedStableEndSinceNs = null
+            0L
         }
 
-        if (durationMs >= maxGestureDurationMs) {
-            notifyMac("gesture_timeout", "Gesture timed out. Return face down faster.")
-            finishArmedGesture()
+        when (
+            GestureCapturePolicy.decide(
+                durationMs = durationMs,
+                faceDownStable = stable,
+                stableEndHeldMs = stableEndHeldMs,
+                minDurationMs = minGestureDurationMs,
+                maxDurationMs = maxGestureDurationMs,
+                stableEndHoldMs = stableEndHoldMs
+            )
+        ) {
+            GestureCaptureDecision.COMPLETE -> {
+                notifyMac("gesture_captured", "Gesture captured. Matching now.")
+                finishArmedGesture(faceDownEndObserved = true)
+                return
+            }
+            GestureCaptureDecision.TIMEOUT_REJECT -> {
+                val reason = "Gesture timed out before stable face-down end. No command sent."
+                notifyMac("gesture_timeout", reason)
+                rejectArmedGesture(reason)
+                return
+            }
+            GestureCaptureDecision.CONTINUE -> Unit
         }
     }
 
-    private fun finishArmedGesture() {
+    private fun rejectArmedGesture(reason: String) {
+        collectingArmedGesture = false
+        armedBaselineReady = false
+        armedStableEndSinceNs = null
+        armedSamples.clear()
+        mediumConfidenceCommand = null
+        ui = ui.copy(
+            armed = false,
+            phase = DexTiltPhase.LowConfidence,
+            lastConfidence = 0,
+            confirmationRequired = false,
+            lastResult = reason
+        )
+        feedback.failure()
+        log(reason)
+    }
+
+    private fun finishArmedGesture(faceDownEndObserved: Boolean) {
+        if (!faceDownEndObserved) {
+            val reason = "Gesture rejected because a stable face-down end was not observed. No command sent."
+            notifyMac("command_blocked", reason)
+            rejectArmedGesture(reason)
+            return
+        }
+
         collectingArmedGesture = false
         armedBaselineReady = false
         armedStableEndSinceNs = null
         val template = ui.activeGesture ?: return
-        val match = matcher.match(template, armedSamples.toList(), faceDownStable = true)
+        val match = matcher.match(template, armedSamples.toList(), faceDownStable = faceDownEndObserved)
         ui = ui.copy(phase = DexTiltPhase.Matching, lastConfidence = match.confidence, lastResult = "Gesture confidence ${match.confidence}: ${match.label}")
         notifyMac("gesture_match", "Gesture ${match.label}. Confidence ${match.confidence}.")
         when {
@@ -458,25 +498,65 @@ class DexTiltViewModel(application: Application) : AndroidViewModel(application)
 
         recordingSamples.add(sample)
         val durationMs = gestureDurationMs(recordingSamples)
-
-        if (stable && durationMs >= minGestureDurationMs) {
+        val stableEndHeldMs = if (stable && durationMs >= minGestureDurationMs) {
             val since = trainingStableEndSinceNs ?: sample.timestampNs.also { trainingStableEndSinceNs = it }
-            val heldMs = (sample.timestampNs - since) / 1_000_000L
-            if (heldMs >= stableEndHoldMs) {
-                finishTrainingPass(sample.timestampNs)
-                return
-            }
+            (sample.timestampNs - since) / 1_000_000L
         } else {
             trainingStableEndSinceNs = null
+            0L
         }
 
-        if (durationMs >= maxGestureDurationMs) {
-            notifyMac("training_timeout", "Recording $trainingPass timed out. Return face down faster.")
-            finishTrainingPass(sample.timestampNs)
+        when (
+            GestureCapturePolicy.decide(
+                durationMs = durationMs,
+                faceDownStable = stable,
+                stableEndHeldMs = stableEndHeldMs,
+                minDurationMs = minGestureDurationMs,
+                maxDurationMs = maxGestureDurationMs,
+                stableEndHoldMs = stableEndHoldMs
+            )
+        ) {
+            GestureCaptureDecision.COMPLETE -> {
+                finishTrainingPass(sample.timestampNs, faceDownEndObserved = true)
+                return
+            }
+            GestureCaptureDecision.TIMEOUT_REJECT -> {
+                val reason = "Training pass $trainingPass timed out before stable face-down end. No gesture saved."
+                notifyMac("training_timeout", reason)
+                rejectTrainingCapture(reason)
+                return
+            }
+            GestureCaptureDecision.CONTINUE -> Unit
         }
     }
 
-    private fun finishTrainingPass(nowNs: Long) {
+    private fun rejectTrainingCapture(reason: String) {
+        recording = false
+        trainingPass = 0
+        trainingCollectingMotion = false
+        trainingBaselineReady = false
+        trainingStableEndSinceNs = null
+        trainingBlockedUntilNs = 0L
+        recordingSamples.clear()
+        trainingFirstPassSamples.clear()
+        ui = ui.copy(
+            phase = DexTiltPhase.LowConfidence,
+            recordingCount = 0,
+            lastConfidence = 0,
+            lastResult = reason
+        )
+        feedback.failure()
+        log(reason)
+    }
+
+    private fun finishTrainingPass(nowNs: Long, faceDownEndObserved: Boolean) {
+        if (!faceDownEndObserved) {
+            val reason = "Training rejected because a stable face-down end was not observed. No gesture saved."
+            notifyMac("training_failed", reason)
+            rejectTrainingCapture(reason)
+            return
+        }
+
         val captured = recordingSamples.toList()
         if (captured.size < 8) {
             recording = false
@@ -506,7 +586,7 @@ class DexTiltViewModel(application: Application) : AndroidViewModel(application)
         }
 
         val validationTemplate = gestures.buildTemplate("Validation", trainingFirstPassSamples.toList(), sensorSources(), ui.sensitivity)
-        val match = matcher.match(validationTemplate, captured, faceDownStable = true)
+        val match = matcher.match(validationTemplate, captured, faceDownStable = faceDownEndObserved)
 
         if (match.confidence < 60) {
             recording = false

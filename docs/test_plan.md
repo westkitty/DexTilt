@@ -77,3 +77,17 @@ After APK install:
 21. Confirm the default browser opens `https://chatgpt.com/`.
 22. Inspect logs on both sides and verify command accepted with valid signature.
 23. Confirm `DexTilt_Bible.md` and `PROJECT_MANIFEST.md` are updated.
+
+
+## Stable-end regression checks
+
+The face-down end is a command-safety invariant, not merely a confidence hint.
+
+1. Arm DexTilt, obtain a face-down baseline, begin a gesture, then **do not** return the phone to stable face-down before the 5-second capture limit.
+2. Expected: DexTilt reports a timeout, disarms, sends no command, and does not enter gesture matching.
+3. Start training, begin either training pass, then **do not** return the phone to stable face-down before the capture limit.
+4. Expected: training fails, the session is cleared, and no gesture template is saved.
+5. Repeat a valid gesture and hold the stable face-down end for at least 600 ms before the limit.
+6. Expected: capture completes normally and proceeds to matching/training validation.
+
+The JVM unit tests in `GestureCapturePolicyTest.kt` lock the corresponding timeout/complete decision boundary.

@@ -85,3 +85,7 @@ mac_receiver/tests/test_crypto.py | Mac receiver automated test/fixture code | C
 scripts/build_android_debug_apk.sh | Command-line Android debug APK build script | Complete | NOT RUN - Android SDK/ADB unavailable in sandbox | Expected to copy APK to release/DexTilt-debug.apk after successful build
 scripts/install_android_wireless.sh | Wireless debugging APK install script | Complete | NOT RUN - Android SDK/ADB unavailable in sandbox | Requires adb and Galaxy S21+
 shared/protocol_schema.json | Shared protocol/schema artifact | Complete | Reviewed | None
+
+OPERATIONAL_STATE.md | Current project control plane and evidence state | Current | Reviewed | Bootstrapped 2026-09-17; device verification remains explicit
+android_app/app/src/main/java/com/stinkyweasel/dextilt/gesture/GestureCapturePolicy.kt | Pure gesture completion/timeout policy | Complete | Isolated Kotlin policy harness passed | Timeout cannot finalize a capture without stable face-down end
+android_app/app/src/test/java/com/stinkyweasel/dextilt/gesture/GestureCapturePolicyTest.kt | JVM regression tests for stable-end invariant | Complete | Source added; Gradle test pending target toolchain | Covers continue, complete, timeout reject, boundary behavior
