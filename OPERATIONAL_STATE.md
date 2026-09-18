@@ -2,7 +2,7 @@
 
 project_id: dextilt
 project_name: DexTilt
-revision: 1
+revision: 2
 last_updated: 2026-09-17
 scope: Android motion-command client plus Mac receiver/dashboard
 
@@ -11,7 +11,8 @@ scope: Android motion-command client plus Mac receiver/dashboard
 - Branch: `main`
 - Parent before this revision: `20dcf2d9ea044d0fddecc74b54140f64bed764ff`
 - Current change: stable face-down end is now an explicit completion invariant for armed gestures and both training passes.
-- Publication commit: recorded in the next additive state revision after this implementation commit exists.
+- Implementation commit: `9cc8becb0ecd134e2433382912b7320c87ac117b`
+- Publication: implementation commit is on `main`; this documentation follow-up records the hash additively.
 
 ## Artifact contract
 
@@ -84,6 +85,10 @@ Receiver TTL plus Android reconnect drain/staleness checks remain in place.
 | DEVICE-001 | Galaxy S21 end-to-end gesture execution | No current hardware run | pending |
 
 ## Revision history
+
+### Revision 2 — 2026-09-17
+
+Recorded implementation commit `9cc8becb0ecd134e2433382912b7320c87ac117b` after verified publication to `main`. No behavior claims were promoted beyond the evidence already recorded.
 
 ### Revision 1 — 2026-09-17
 

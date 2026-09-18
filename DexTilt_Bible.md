@@ -852,3 +852,40 @@ Andrew should restart the Mac receiver (if not already running), open the dashbo
 
 Uncertainty / Blockers:
 Passive manual dashboard check and visual confirmation not performed.
+
+
+---
+
+## Session: 2026-09-17 — Stable Face-Down End Invariant Repair
+
+### Summary
+Closed a gesture-safety defect in the Android armed and training capture paths. A capture that reached the maximum duration without returning to a stable face-down end could previously fall through into matching or training finalization. Timeout now rejects the capture instead.
+
+### Protected invariant
+`DT-INV-001`: gesture matching or training finalization requires an actually observed stable face-down end held for the configured duration. Timeout without that end state must never match, execute, or save a training pass.
+
+### Files changed
+- `android_app/app/src/main/java/com/stinkyweasel/dextilt/DexTiltViewModel.kt`
+- `android_app/app/src/main/java/com/stinkyweasel/dextilt/gesture/GestureCapturePolicy.kt`
+- `android_app/app/src/test/java/com/stinkyweasel/dextilt/gesture/GestureCapturePolicyTest.kt`
+- `docs/test_plan.md`
+- `PROJECT_MANIFEST.md`
+- `OPERATIONAL_STATE.md`
+
+### Validation
+A pure Kotlin/JVM policy harness was compiled and executed in the available runtime. Five boundary cases passed:
+- ordinary capture continues;
+- valid stable face-down end completes;
+- timeout without stable face-down end rejects;
+- timeout with only 599 ms stable hold rejects;
+- valid 600 ms stable end at the 5000 ms duration boundary completes.
+
+The full Android/Compose project and Galaxy S21 hardware path were not available in this runtime, so those remain pending and are recorded in `OPERATIONAL_STATE.md`.
+
+### Git delivery
+Implementation commit: `9cc8becb0ecd134e2433382912b7320c87ac117b`
+Branch: `main`
+Push method: authenticated GitHub ref update because the MacBook execution node was offline.
+
+### Next step
+Run the repository Android tests/build on the Mac toolchain, install the APK on the Galaxy S21, and execute the DT-INV-001 physical regression sequence before promoting device behavior to verified.
